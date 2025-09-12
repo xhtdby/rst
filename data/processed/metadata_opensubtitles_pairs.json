@@ -1,0 +1,29 @@
+{
+  "source": "opensubtitles_pairs",
+  "stats": {
+    "raw_records": 564,
+    "processed_edges": 1128,
+    "filtered_edges": 1039,
+    "unique_src": 95,
+    "unique_dst": 95,
+    "total_weight": 190.07978957868067,
+    "avg_weight": 0.18294493703434137
+  },
+  "config": {
+    "name": "opensubtitles_pairs",
+    "url": null,
+    "local_path": null,
+    "weight_multiplier": 0.3,
+    "min_weight": 0.001,
+    "max_edges_per_src": 25,
+    "preprocessing": {
+      "remove_special_chars": true,
+      "alphabetic_only": true,
+      "min_word_length": 2,
+      "max_word_length": 20,
+      "stopwords": "set()",
+      "window_size": 5,
+      "min_cooccurrence": 2
+    }
+  }
+}

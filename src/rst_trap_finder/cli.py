@@ -1,158 +1,266 @@
-"""Command line interface using argparse."""
+"""
+Simplified command line interface for RST Trap Finder.
+
+This CLI provides easy access to the core functionality for analyzing
+word association graphs and finding trap words.
+"""
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional
 
-from . import TRAP_LETTERS
-from .io import load_csv
-from .scores import (
-    biased_pagerank,
-    composite,
-    one_step_rst_prob,
-    escape_hardness,
-    k_step_rst_prob,
-    minimax_topm,
-)
-from .strategy import recommend_next
+from .core import load_graph
 
 
-def parse_lambdas(s: str) -> Tuple[float, float, float, float, float]:
-    parts = [float(x) for x in s.split(",")]
-    if len(parts) != 5:
-        raise ValueError("need five comma-separated numbers")
-    return tuple(parts)  # type: ignore[return-value]
-
-
-def format_table(headers: List[str], rows: List[List[object]]) -> str:
+def format_table(headers: List[str], rows: List[List[str]]) -> str:
+    """Format data as a simple aligned table."""
+    if not rows:
+        return ""
+    
+    # Calculate column widths
     widths = [len(h) for h in headers]
     for row in rows:
         for i, cell in enumerate(row):
-            widths[i] = max(widths[i], len(f"{cell}"))
-    fmt = " | ".join(f"{{:<{w}}}" for w in widths)
-    lines = [fmt.format(*headers), "-+-".join("-" * w for w in widths)]
+            if i < len(widths):
+                widths[i] = max(widths[i], len(str(cell)))
+    
+    # Format table
+    format_str = " | ".join(f"{{:<{w}}}" for w in widths)
+    separator = "-+-".join("-" * w for w in widths)
+    
+    lines = [
+        format_str.format(*headers),
+        separator
+    ]
+    
     for row in rows:
-        lines.append(fmt.format(*row))
+        lines.append(format_str.format(*row))
+    
     return "\n".join(lines)
 
 
-def cmd_rank(args: argparse.Namespace) -> None:
-    graph = load_csv(args.csv)
-    lamb = parse_lambdas(args.lambdas)
-    pr = biased_pagerank(graph, TRAP_LETTERS, args.alpha)
+def cmd_analyze(args: argparse.Namespace) -> None:
+    """Analyze the graph and show top trap words."""
+    try:
+        graph = load_graph(args.csv)
+    except Exception as e:
+        print(f"Error loading graph: {e}")
+        sys.exit(1)
+    
+    print("Loading graph and computing scores...")
+    graph.print_summary()
+    print()
+    
+    # Get top words
+    top_words = graph.rank_words(top_k=args.top)
+    
+    if not top_words:
+        print("No words found in graph.")
+        return
+    
+    print(f"Top {len(top_words)} trap words:")
+    headers = ["Rank", "Word", "Score", "One-Step", "Hardness", "PageRank"]
     rows = []
-    for u in graph:
-        s1 = one_step_rst_prob(u, graph, TRAP_LETTERS)
-        h = escape_hardness(u, graph, TRAP_LETTERS, args.min_w)
-        k2 = k_step_rst_prob(u, graph, TRAP_LETTERS, args.k)
-        mm = minimax_topm(u, graph, TRAP_LETTERS, args.m)
-        comp = composite(u, graph, TRAP_LETTERS, pr, lamb)
-        outs = graph.get(u, {})
-        strong_non = sum(
-            1 for v, w in outs.items() if v and v[0] not in TRAP_LETTERS and w >= args.min_w * max(outs.values())
-        )
-        rows.append(
-            [
-                u,
-                f"{comp:.3f}",
-                f"{s1:.3f}",
-                f"{h:.3f}",
-                f"{pr.get(u,0.0):.3e}",
-                f"{k2:.3f}",
-                f"{mm:.3f}",
-                len(outs),
-                strong_non,
-            ]
-        )
-    rows.sort(key=lambda r: float(r[1]), reverse=True)
-    headers = ["word", "comp", "S1", "H", "PR", "K2", "MM3", "outdeg", "strong_nonRST_exits"]
-    print(format_table(headers, rows[: args.top]))
-
-
-def cmd_next(args: argparse.Namespace) -> None:
-    graph = load_csv(args.csv)
-    lamb = parse_lambdas(args.lambdas)
-    pr = biased_pagerank(graph)
-    res = recommend_next(args.word, graph, TRAP_LETTERS, pr, lamb)
-    best = res["best"]
-    print(f"Best: {best['word']}")
-    headers = ["word", "comp", "basin", "non_rst_strong_exits", "expected"]
-    rows = [
-        [
-            c["word"],
-            f"{c['composite']:.3f}",
-            f"{c['basin']:.3f}",
-            c["non_rst_strong_exits"],
-            f"{c['expected']:.3f}",
-        ]
-        for c in res["candidates"]
-    ]
+    
+    for i, (word, score) in enumerate(top_words, 1):
+        analysis = graph.get_word_analysis(word)
+        rows.append([
+            str(i),
+            word,
+            f"{score:.4f}",
+            f"{analysis['one_step_probability']:.4f}",
+            f"{analysis['escape_hardness']:.4f}",
+            f"{analysis['pagerank_score']:.4f}"
+        ])
+    
     print(format_table(headers, rows))
 
 
-def cmd_info(args: argparse.Namespace) -> None:
-    graph = load_csv(args.csv)
-    if args.word not in graph:
-        raise ValueError("word not in graph")
-    pr = biased_pagerank(graph)
-    s1 = one_step_rst_prob(args.word, graph, TRAP_LETTERS)
-    h = escape_hardness(args.word, graph, TRAP_LETTERS)
-    k2 = k_step_rst_prob(args.word, graph, TRAP_LETTERS)
-    mm = minimax_topm(args.word, graph, TRAP_LETTERS)
-    comp = composite(args.word, graph, TRAP_LETTERS, pr)
-    print(
-        f"word: {args.word}\nS1={s1:.3f} H={h:.3f} PR={pr.get(args.word,0.0):.3e} K2={k2:.3f} MM3={mm:.3f} comp={comp:.3f}"
+def cmd_word(args: argparse.Namespace) -> None:
+    """Analyze a specific word in detail."""
+    try:
+        graph = load_graph(args.csv)
+    except Exception as e:
+        print(f"Error loading graph: {e}")
+        sys.exit(1)
+    
+    word = args.word.lower()
+    
+    if not graph.has_word(word):
+        print(f"Word '{word}' not found in graph.")
+        return
+    
+    try:
+        analysis = graph.get_word_analysis(word)
+    except Exception as e:
+        print(f"Error analyzing word: {e}")
+        return
+    
+    print(f"Analysis for '{word}':")
+    print(f"  Composite Score: {analysis['composite_score']:.4f}")
+    print(f"  One-Step Probability: {analysis['one_step_probability']:.4f}")
+    print(f"  Escape Hardness: {analysis['escape_hardness']:.4f}")
+    print(f"  PageRank Score: {analysis['pagerank_score']:.4f}")
+    print(f"  Neighbor Count: {analysis['neighbor_count']}")
+    print(f"  Total Outgoing Weight: {analysis['total_outgoing_weight']:.2f}")
+    
+    if analysis['neighbors']:
+        print(f"\nTop neighbors:")
+        headers = ["Word", "Weight", "Is Trap"]
+        rows = []
+        for neighbor, weight, is_trap in analysis['neighbors']:
+            rows.append([
+                neighbor,
+                f"{weight:.2f}",
+                "Yes" if is_trap else "No"
+            ])
+        print(format_table(headers, rows))
+
+
+def cmd_recommend(args: argparse.Namespace) -> None:
+    """Recommend next words from a given word."""
+    try:
+        graph = load_graph(args.csv)
+    except Exception as e:
+        print(f"Error loading graph: {e}")
+        sys.exit(1)
+    
+    word = args.word.lower()
+    
+    if not graph.has_word(word):
+        print(f"Word '{word}' not found in graph.")
+        return
+    
+    recommendations = graph.recommend_next_word(word, top_k=args.top)
+    
+    if not recommendations:
+        print(f"No recommendations available from '{word}'.")
+        return
+    
+    best = recommendations[0]
+    print(f"Best next word from '{word}': {best['word']} (score: {best['score']:.4f})")
+    print()
+    
+    print(f"Top {len(recommendations)} recommendations:")
+    headers = ["Rank", "Word", "Score", "One-Step", "Hardness", "Weight"]
+    rows = []
+    
+    for i, rec in enumerate(recommendations, 1):
+        rows.append([
+            str(i),
+            rec['word'],
+            f"{rec['score']:.4f}",
+            f"{rec['one_step_prob']:.4f}",
+            f"{rec['hardness']:.4f}",
+            f"{rec['edge_weight']:.2f}"
+        ])
+    
+    print(format_table(headers, rows))
+
+
+def cmd_export(args: argparse.Namespace) -> None:
+    """Export word scores to a CSV file."""
+    try:
+        graph = load_graph(args.csv)
+    except Exception as e:
+        print(f"Error loading graph: {e}")
+        sys.exit(1)
+    
+    output_path = Path(args.output)
+    
+    try:
+        graph.export_scores(output_path)
+        print(f"Scores exported to {output_path}")
+    except Exception as e:
+        print(f"Error exporting scores: {e}")
+        sys.exit(1)
+
+
+def main(argv: Optional[List[str]] = None) -> None:
+    """Main CLI entry point."""
+    parser = argparse.ArgumentParser(
+        description="RST Trap Finder - Analyze word association graphs for trap words",
+        prog="rst-find"
     )
-    outs = sorted(graph[args.word].items(), key=lambda x: x[1], reverse=True)[:10]
-    headers = ["dst", "weight", "RST"]
-    rows = [[v, f"{w:.3f}", str(v[0] in TRAP_LETTERS)] for v, w in outs]
-    print(format_table(headers, rows))
-
-
-def cmd_tune(args: argparse.Namespace) -> None:
-    graph = load_csv(args.csv)
-    lamb = parse_lambdas(args.lambdas)
-    pr = biased_pagerank(graph, TRAP_LETTERS, args.alpha)
-    rows = []
-    for u in graph:
-        comp = composite(u, graph, TRAP_LETTERS, pr, lamb)
-        rows.append([u, f"{comp:.3f}"])
-    rows.sort(key=lambda r: float(r[1]), reverse=True)
-    print(format_table(["word", "comp"], rows[:20]))
-
-
-def main(argv: List[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(prog="rst_trap_finder")
-    sub = parser.add_subparsers(dest="cmd", required=True)
-
-    p_rank = sub.add_parser("rank")
-    p_rank.add_argument("--csv", type=Path, required=True)
-    p_rank.add_argument("--top", type=int, default=10)
-    p_rank.add_argument("--alpha", type=float, default=1.5)
-    p_rank.add_argument("--min-w", dest="min_w", type=float, default=0.05)
-    p_rank.add_argument("--k", type=int, default=2)
-    p_rank.add_argument("--m", type=int, default=3)
-    p_rank.add_argument("--lambdas", type=str, default="0.35,0.2,0.25,0.1,0.1")
-    p_rank.set_defaults(func=cmd_rank)
-
-    p_next = sub.add_parser("next")
-    p_next.add_argument("--word", required=True)
-    p_next.add_argument("--csv", type=Path, required=True)
-    p_next.add_argument("--lambdas", type=str, default="0.35,0.2,0.25,0.1,0.1")
-    p_next.set_defaults(func=cmd_next)
-
-    p_info = sub.add_parser("info")
-    p_info.add_argument("--word", required=True)
-    p_info.add_argument("--csv", type=Path, required=True)
-    p_info.set_defaults(func=cmd_info)
-
-    p_tune = sub.add_parser("tune")
-    p_tune.add_argument("--csv", type=Path, required=True)
-    p_tune.add_argument("--alpha", type=float, default=1.5)
-    p_tune.add_argument("--lambdas", type=str, default="0.35,0.2,0.25,0.1,0.1")
-    p_tune.set_defaults(func=cmd_tune)
-
+    
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+    subparsers.required = True
+    
+    # Analyze command
+    analyze_parser = subparsers.add_parser(
+        "analyze", 
+        help="Analyze graph and show top trap words"
+    )
+    analyze_parser.add_argument(
+        "csv", 
+        type=Path, 
+        help="Path to CSV file containing word associations"
+    )
+    analyze_parser.add_argument(
+        "--top", 
+        type=int, 
+        default=20, 
+        help="Number of top words to show (default: 20)"
+    )
+    analyze_parser.set_defaults(func=cmd_analyze)
+    
+    # Word command
+    word_parser = subparsers.add_parser(
+        "word", 
+        help="Analyze a specific word in detail"
+    )
+    word_parser.add_argument(
+        "word", 
+        help="Word to analyze"
+    )
+    word_parser.add_argument(
+        "csv", 
+        type=Path, 
+        help="Path to CSV file containing word associations"
+    )
+    word_parser.set_defaults(func=cmd_word)
+    
+    # Recommend command
+    recommend_parser = subparsers.add_parser(
+        "recommend", 
+        help="Get recommendations for next word"
+    )
+    recommend_parser.add_argument(
+        "word", 
+        help="Current word"
+    )
+    recommend_parser.add_argument(
+        "csv", 
+        type=Path, 
+        help="Path to CSV file containing word associations"
+    )
+    recommend_parser.add_argument(
+        "--top", 
+        type=int, 
+        default=10, 
+        help="Number of recommendations to show (default: 10)"
+    )
+    recommend_parser.set_defaults(func=cmd_recommend)
+    
+    # Export command
+    export_parser = subparsers.add_parser(
+        "export", 
+        help="Export word scores to CSV"
+    )
+    export_parser.add_argument(
+        "csv", 
+        type=Path, 
+        help="Path to input CSV file containing word associations"
+    )
+    export_parser.add_argument(
+        "output", 
+        type=Path, 
+        help="Path to output CSV file for scores"
+    )
+    export_parser.set_defaults(func=cmd_export)
+    
     args = parser.parse_args(argv)
     args.func(args)
 
