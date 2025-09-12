@@ -1,0 +1,18 @@
+{
+  "created_date": "2025-09-12 08:10:06",
+  "source_datasets": {
+    "conceptnet": {
+      "raw_edges": 500000,
+      "valid_edges": 500000
+    },
+    "usf": {
+      "raw_edges": 14,
+      "valid_edges": 14
+    }
+  },
+  "merged_stats": {
+    "total_edges": 479433,
+    "unique_words": 189557,
+    "average_degree": 5.058457350559462
+  }
+}

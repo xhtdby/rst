@@ -1,0 +1,10 @@
+{
+  "dataset": "ConceptNet-Light",
+  "source": "ConceptNet 5.7 (filtered for quality)",
+  "description": "High-confidence semantic edges for vocabulary coverage",
+  "processed_date": "2025-09-12 08:51:36",
+  "valid_edges": 31444,
+  "unique_words": 25315,
+  "weight_in_merge": 0.3,
+  "priority": "FILLER"
+}

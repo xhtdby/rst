@@ -1,28 +1,10 @@
 {
-  "source": "usf",
-  "stats": {
-    "raw_records": 7,
-    "processed_edges": 14,
-    "filtered_edges": 14,
-    "unique_src": 14,
-    "unique_dst": 14,
-    "total_weight": 5.760000000000002,
-    "avg_weight": 0.41142857142857153
-  },
-  "config": {
-    "name": "usf",
-    "url": "http://w3.usf.edu/FreeAssociation/AppendixA.csv",
-    "local_path": null,
-    "weight_multiplier": 0.8,
-    "min_weight": 0.005,
-    "max_edges_per_src": 40,
-    "preprocessing": {
-      "remove_special_chars": true,
-      "alphabetic_only": true,
-      "min_word_length": 2,
-      "max_word_length": 30,
-      "stopwords": "set()",
-      "use_backward": true
-    }
-  }
+  "dataset": "USF",
+  "source": "University of South Florida Free Association Norms",
+  "description": "Classic word association norms with forward strength",
+  "processed_date": "2025-09-12 08:50:45",
+  "valid_edges": 70695,
+  "unique_words": 9883,
+  "weight_in_merge": 1.5,
+  "priority": "SECONDARY"
 }

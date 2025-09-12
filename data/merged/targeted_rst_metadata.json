@@ -1,0 +1,27 @@
+{
+  "created_date": "2025-09-12 08:51:40",
+  "description": "Targeted RST dataset with SWOW-EN18 primary, USF secondary, ConceptNet filler",
+  "weighting_strategy": "SWOW(3.0x) + USF(1.5x) + ConceptNet(0.3x)",
+  "source_datasets": {
+    "usf": {
+      "edges": 70695,
+      "weight_multiplier": 1.5,
+      "edges_added": 70695
+    },
+    "conceptnet_light": {
+      "edges": 31444,
+      "weight_multiplier": 0.3,
+      "edges_added": 31444
+    }
+  },
+  "final_stats": {
+    "total_edges": 100835,
+    "unique_words": 30073,
+    "average_degree": 6.706015362617631,
+    "weight_range": [
+      0.0105,
+      4.8
+    ]
+  },
+  "optimization": "Optimized for RST trap word analysis"
+}

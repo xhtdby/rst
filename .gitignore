@@ -210,10 +210,14 @@ __marimo__/
 data/raw/
 data/processed/*.csv
 data/processed/*.parquet
-data/merged/
+data/processed/swow_temp/
+data/merged/*.csv
+data/merged/*.parquet
 *.csv.gz
 *.parquet
 
 # Keep small metadata and config files
 !data/processed/metadata_*.json
 !data/processed/*AppendixA.csv
+!data/merged/metadata_*.json
+!data/merged/*_metadata.json

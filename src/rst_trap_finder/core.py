@@ -321,14 +321,17 @@ class WordAssociationGraph:
         return probability
     
     def composite_score(self, word: str, pagerank_scores: Optional[ScoreDict] = None,
-                       weights: Tuple[float, float, float] = (0.5, 0.3, 0.2)) -> float:
+                       weights: Tuple[float, float, float, float] = (0.4, 0.2, 0.2, 0.2)) -> float:
         """
         Calculate a composite trap score combining multiple metrics.
+        
+        IMPROVED: Now balances RST probability with neighborhood richness.
+        Good trap words should have BOTH high RST probability AND many pathways.
         
         Args:
             word: Word to score
             pagerank_scores: Pre-computed PageRank scores (computed if None)
-            weights: Weights for (one_step, hardness, pagerank) components
+            weights: Weights for (one_step, richness, hardness, pagerank) components
             
         Returns:
             Composite score (higher = better trap word)
@@ -336,29 +339,54 @@ class WordAssociationGraph:
         if pagerank_scores is None:
             pagerank_scores = self.biased_pagerank()
         
+        # Core metrics
         one_step = self.one_step_rst_probability(word)
         hardness = self.escape_hardness(word)
         pagerank = pagerank_scores.get(word, 0.0)
         
-        w1, w2, w3 = weights
-        return w1 * one_step + w2 * hardness + w3 * pagerank
+        # NEW: Neighborhood richness - rewards words with more pathways
+        neighbors = self.get_neighbors(word)
+        neighbor_count = len(neighbors)
+        
+        # Normalize neighbor count (log scale to prevent huge words from dominating)
+        import math
+        if neighbor_count > 0:
+            richness = min(1.0, math.log(neighbor_count + 1) / math.log(50))  # Cap at 50 neighbors
+        else:
+            richness = 0.0
+        
+        # Balanced scoring that rewards both RST probability AND pathway diversity
+        w1, w2, w3, w4 = weights
+        base_score = w1 * one_step + w2 * richness + w3 * hardness + w4 * pagerank
+        
+        # Bonus for words that are both effective AND well-connected
+        if one_step > 0.1 and neighbor_count >= 5:
+            connectivity_bonus = 0.1 * min(one_step, richness)
+            base_score += connectivity_bonus
+        
+        return base_score
     
-    def rank_words(self, top_k: Optional[int] = None, 
-                   score_weights: Tuple[float, float, float] = (0.5, 0.3, 0.2)) -> List[Tuple[str, float]]:
+    def rank_words(self, top_k: Optional[int] = None,
+                   score_weights: Tuple[float, float, float, float] = (0.4, 0.2, 0.2, 0.2)) -> List[Tuple[str, float]]:
         """
         Rank all words by their trap effectiveness.
         
+        IMPROVED: Now uses 4-component scoring (RST prob, richness, hardness, pagerank)
+        INTELLIGENT: Excludes RST words from rankings (they're targets, not strategies)
+        
         Args:
             top_k: Number of top words to return (None for all)
-            score_weights: Weights for composite scoring
+            score_weights: Weights for (one_step, richness, hardness, pagerank) components
             
         Returns:
             List of (word, score) tuples sorted by score (highest first)
+            Note: RST words are excluded as they represent game-ending moves, not strategic plays
         """
         pagerank_scores = self.biased_pagerank()
         
         word_scores = []
-        words = list(self.graph.keys())
+        # Filter out RST words from ranking - they're targets, not strategic moves
+        words = [word for word in self.graph.keys() if word[0].lower() not in {'r', 's', 't'}]
         
         try:
             word_iterator = tqdm(words, desc="Computing word scores", unit="words")
@@ -368,9 +396,7 @@ class WordAssociationGraph:
         
         for word in word_iterator:
             score = self.composite_score(word, pagerank_scores, score_weights)
-            word_scores.append((word, score))
-        
-        # Close progress bar if it exists
+            word_scores.append((word, score))        # Close progress bar if it exists
         if hasattr(word_iterator, 'close'):
             word_iterator.close()
         
@@ -386,21 +412,31 @@ class WordAssociationGraph:
         """
         Recommend next words from the current word based on trap effectiveness.
         
+        INTELLIGENT: Excludes RST words from recommendations (choosing them = instant loss)
+        
         Args:
             current_word: Current word in the game
             top_k: Number of recommendations to return
             
         Returns:
             List of recommendation dictionaries with word, score, and metrics
+            Note: RST words are excluded as choosing them would end the game immediately
         """
         neighbors = self.get_neighbors(current_word)
         if not neighbors:
             return []
         
+        # Filter out RST words from recommendations - choosing them = instant loss
+        playable_neighbors = {word: weight for word, weight in neighbors.items() 
+                            if word[0].lower() not in {'r', 's', 't'}}
+        
+        if not playable_neighbors:
+            return []  # No safe moves available
+        
         pagerank_scores = self.biased_pagerank()
         recommendations = []
         
-        for neighbor, weight in neighbors.items():
+        for neighbor, weight in playable_neighbors.items():
             one_step = self.one_step_rst_probability(neighbor)
             hardness = self.escape_hardness(neighbor)
             pagerank = pagerank_scores.get(neighbor, 0.0)
@@ -417,6 +453,41 @@ class WordAssociationGraph:
         
         recommendations.sort(key=lambda x: x['score'], reverse=True)
         return recommendations[:top_k]
+    
+    def analyze_rst_targets(self, top_k: int = 20) -> Dict[str, List[Tuple[str, int]]]:
+        """
+        Analyze RST words as targets - find which ones are most reachable.
+        
+        RST words are game-ending targets, not strategic moves. This method
+        analyzes which RST targets are most accessible from the word association graph.
+        
+        Args:
+            top_k: Number of top targets to return for each letter
+            
+        Returns:
+            Dictionary with 'R', 'S', 'T' keys containing lists of (word, incoming_edges)
+        """
+        rst_analysis = {'R': [], 'S': [], 'T': []}
+        
+        # Find all RST words and count incoming edges
+        for word in self.graph.keys():
+            first_letter = word[0].upper()
+            if first_letter in {'R', 'S', 'T'}:
+                # Count how many non-RST words can reach this RST word
+                incoming_count = 0
+                for source_word, neighbors in self.graph.items():
+                    # Only count non-RST sources (since RST words can't be played)
+                    if source_word[0].lower() not in {'r', 's', 't'} and word in neighbors:
+                        incoming_count += 1
+                
+                rst_analysis[first_letter].append((word, incoming_count))
+        
+        # Sort by reachability (most incoming edges first)
+        for letter in rst_analysis:
+            rst_analysis[letter].sort(key=lambda x: x[1], reverse=True)
+            rst_analysis[letter] = rst_analysis[letter][:top_k]
+        
+        return rst_analysis
     
     def get_word_analysis(self, word: str) -> Dict[str, Union[str, float, List[Tuple[str, float]]]]:
         """

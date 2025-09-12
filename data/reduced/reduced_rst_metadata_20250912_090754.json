@@ -1,0 +1,30 @@
+{
+  "created_date": "2025-09-12 09:07:54",
+  "source_dataset": "data\\merged\\complete_rst_dataset.csv",
+  "reduction_strategy": "intelligent_preservation",
+  "target_size_factor": 0.7,
+  "algorithm_components": [
+    "Edge importance scoring (weight + centrality + RST value)",
+    "Long chain preservation for debugging",
+    "High-value neighborhood preservation",
+    "Connectivity maintenance"
+  ],
+  "statistics": {
+    "original_edges": 143155,
+    "reduced_edges": 100208,
+    "reduction_ratio": 0.6999965072823163,
+    "original_words": 35259,
+    "reduced_words": 26208,
+    "word_retention": 0.7432995830851697,
+    "preserved_chains": 31882,
+    "preserved_high_value": 17112,
+    "chain_preservation_rate": 1.0,
+    "high_value_preservation_rate": 1.0
+  },
+  "quality_metrics": {
+    "chain_preservation": "100.0%",
+    "high_value_preservation": "100.0%",
+    "word_retention": "74.3%",
+    "size_reduction": "30.0%"
+  }
+}

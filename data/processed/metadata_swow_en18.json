@@ -1,0 +1,9 @@
+{
+  "dataset": "SWOW-EN18-Partial",
+  "source": "Small World of Words English 2018 (R123, partial)",
+  "processed_date": "2025-09-12 08:50:12",
+  "lines_processed": 50002,
+  "valid_edges": 44460,
+  "unique_words": 13679,
+  "note": "Partial processing due to field size limitations"
+}

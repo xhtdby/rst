@@ -1,0 +1,46 @@
+{
+  "created_date": "2025-09-12 08:52:29",
+  "description": "Complete RST dataset with all three sources",
+  "weighting_strategy": {
+    "SWOW-EN18": "3.0x (highest quality human associations)",
+    "USF": "1.5x (classic word association norms)",
+    "ConceptNet": "0.3x (semantic knowledge filler)"
+  },
+  "source_datasets": {
+    "swow_en18": {
+      "original_edges": 44460,
+      "weight_multiplier": 3.0,
+      "priority": "PRIMARY",
+      "edges_added": 44460
+    },
+    "usf": {
+      "original_edges": 70695,
+      "weight_multiplier": 1.5,
+      "priority": "SECONDARY",
+      "edges_added": 70695
+    },
+    "conceptnet_light": {
+      "original_edges": 31444,
+      "weight_multiplier": 0.3,
+      "priority": "FILLER",
+      "edges_added": 31444
+    }
+  },
+  "final_statistics": {
+    "total_edges": 143155,
+    "unique_words": 35259,
+    "average_degree": 8.120196261947305,
+    "weight_statistics": {
+      "min": 0.0100334448160533,
+      "max": 4.8,
+      "median": 0.033,
+      "mean": 0.15682273069247715
+    }
+  },
+  "quality_notes": [
+    "SWOW-EN18 provides highest quality human free-association data",
+    "USF adds classic word association norms for broader coverage",
+    "ConceptNet provides semantic filler for vocabulary completeness",
+    "All datasets filtered for English-only, alphabetic words"
+  ]
+}
