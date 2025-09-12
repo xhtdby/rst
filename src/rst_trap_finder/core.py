@@ -17,6 +17,15 @@ import math
 from pathlib import Path
 from typing import Dict, FrozenSet, List, Mapping, Optional, Tuple, Union
 
+try:
+    from tqdm import tqdm
+    HAS_TQDM = True
+except ImportError:
+    HAS_TQDM = False
+    # Fallback for when tqdm is not available
+    def tqdm(iterable, *args, **kwargs):
+        return iterable
+
 # Type aliases for clarity
 Graph = Dict[str, Dict[str, float]]
 ScoreDict = Dict[str, float]
@@ -67,7 +76,20 @@ class WordAssociationGraph:
         
         with path.open('r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
-            for row in reader:
+            
+            # Get total number of lines for progress bar
+            f.seek(0)
+            total_lines = sum(1 for _ in f) - 1  # Subtract header
+            f.seek(0)
+            next(reader)  # Skip header
+            
+            try:
+                pbar = tqdm(reader, total=total_lines, desc=f"Loading {path.name}", unit="edges")
+            except NameError:
+                pbar = reader
+                print(f"Loading word associations from {path.name}...")
+            
+            for row in pbar:
                 # Skip comment lines
                 if row.get('src', '').startswith('#'):
                     continue
@@ -91,6 +113,10 @@ class WordAssociationGraph:
                     
                 # Accumulate weights for duplicate edges
                 graph[src][dst] = graph[src].get(dst, 0.0) + weight
+            
+            # Close progress bar if it exists
+            if hasattr(pbar, 'close'):
+                pbar.close()
         
         return cls(graph, trap_letters)
     
@@ -204,7 +230,13 @@ class WordAssociationGraph:
         # Identify dangling nodes (no outgoing edges)
         dangling_nodes = [word for word in all_words if word not in self.graph]
         
-        for iteration in range(max_iterations):
+        try:
+            iterator = tqdm(range(max_iterations), desc="Computing PageRank", unit="iter")
+        except NameError:
+            iterator = range(max_iterations)
+            print("Computing biased PageRank...")
+        
+        for iteration in iterator:
             prev_pagerank = pagerank.copy()
             
             # Handle dangling nodes
@@ -241,7 +273,13 @@ class WordAssociationGraph:
             # Check for convergence
             total_diff = sum(abs(pagerank[word] - prev_pagerank[word]) for word in all_words)
             if total_diff < tolerance:
+                if hasattr(iterator, 'set_description'):
+                    iterator.set_description(f"PageRank converged (iter {iteration+1})")
                 break
+                
+        # Close progress bar if it exists
+        if hasattr(iterator, 'close'):
+            iterator.close()
         
         # Normalize to ensure sum = 1
         total = sum(pagerank.values())
@@ -320,10 +358,23 @@ class WordAssociationGraph:
         pagerank_scores = self.biased_pagerank()
         
         word_scores = []
-        for word in self.graph:
+        words = list(self.graph.keys())
+        
+        try:
+            word_iterator = tqdm(words, desc="Computing word scores", unit="words")
+        except NameError:
+            word_iterator = words
+            print(f"Computing scores for {len(words)} words...")
+        
+        for word in word_iterator:
             score = self.composite_score(word, pagerank_scores, score_weights)
             word_scores.append((word, score))
         
+        # Close progress bar if it exists
+        if hasattr(word_iterator, 'close'):
+            word_iterator.close()
+        
+        print("Sorting words by score...")
         word_scores.sort(key=lambda x: x[1], reverse=True)
         
         if top_k is not None:
@@ -400,6 +451,108 @@ class WordAssociationGraph:
             'neighbors': neighbor_analysis[:10]  # Top 10 neighbors
         }
     
+    def analyze_trap_pathways(self, word: str, max_steps: int = 3, min_weight: float = 0.01) -> Dict[str, Union[str, List, Dict]]:
+        """
+        Analyze the pathways from a word to RST trap words.
+        
+        Shows what specific R/S/T words this trap word actually leads to,
+        and the paths taken to get there.
+        
+        Args:
+            word: Word to analyze pathways from
+            max_steps: Maximum path length to explore (default: 3)
+            min_weight: Minimum edge weight to consider (default: 0.01)
+            
+        Returns:
+            Dictionary containing pathway analysis with direct RST targets,
+            multi-step paths, and statistics
+        """
+        if not self.has_word(word):
+            raise ValueError(f"Word '{word}' not found in graph")
+        
+        # Track all paths to RST words
+        rst_targets = {'R': [], 'S': [], 'T': []}
+        all_paths = []
+        
+        def explore_paths(current_word, path, remaining_steps):
+            """Recursively explore paths to RST words."""
+            if remaining_steps <= 0:
+                return
+                
+            neighbors = self.get_neighbors(current_word)
+            if not neighbors:
+                return
+            
+            for neighbor, weight in neighbors.items():
+                if weight < min_weight:
+                    continue
+                
+                # Skip if neighbor starts with RST (can't be used in game)
+                if neighbor and neighbor[0] in self.trap_letters:
+                    # Only count as endpoint, don't continue path through RST words
+                    new_path = path + [(neighbor, weight)]
+                    letter = neighbor[0].upper()
+                    rst_targets[letter].append({
+                        'target_word': neighbor,
+                        'path': new_path,
+                        'total_weight': sum(w for _, w in new_path),
+                        'path_length': len(new_path)
+                    })
+                    all_paths.append(new_path)
+                    continue  # Don't explore further through RST words
+                    
+                new_path = path + [(neighbor, weight)]
+                
+                # Continue exploring only through non-RST words
+                if neighbor not in [w for w, _ in path]:
+                    explore_paths(neighbor, new_path, remaining_steps - 1)
+        
+        # Start exploration
+        explore_paths(word, [], max_steps)
+        
+        # Organize results
+        direct_rst = self.get_neighbors(word)
+        direct_targets = {}
+        for neighbor, weight in direct_rst.items():
+            if neighbor and neighbor[0] in self.trap_letters:
+                letter = neighbor[0].upper()
+                if letter not in direct_targets:
+                    direct_targets[letter] = []
+                direct_targets[letter].append((neighbor, weight))
+        
+        # Sort targets by weight
+        for letter in direct_targets:
+            direct_targets[letter].sort(key=lambda x: x[1], reverse=True)
+        
+        # Get top pathways for each letter
+        top_pathways = {}
+        for letter in ['R', 'S', 'T']:
+            if rst_targets[letter]:
+                # Sort by total weight and take top paths
+                sorted_paths = sorted(rst_targets[letter], 
+                                    key=lambda x: x['total_weight'], reverse=True)
+                top_pathways[letter] = sorted_paths[:5]  # Top 5 paths per letter
+            else:
+                top_pathways[letter] = []
+        
+        # Calculate statistics
+        total_rst_neighbors = sum(len(targets) for targets in direct_targets.values())
+        total_neighbors = len(direct_rst)
+        direct_rst_probability = total_rst_neighbors / total_neighbors if total_neighbors > 0 else 0
+        
+        return {
+            'source_word': word,
+            'direct_rst_targets': direct_targets,
+            'top_pathways': top_pathways,
+            'statistics': {
+                'total_neighbors': total_neighbors,
+                'direct_rst_neighbors': total_rst_neighbors,
+                'direct_rst_probability': direct_rst_probability,
+                'total_paths_found': len(all_paths),
+                'max_steps_explored': max_steps
+            }
+        }
+    
     def export_scores(self, output_path: Union[str, Path], 
                      score_weights: Tuple[float, float, float] = (0.5, 0.3, 0.2)) -> None:
         """
@@ -418,7 +571,15 @@ class WordAssociationGraph:
                 'escape_hardness', 'pagerank_score', 'neighbor_count'
             ])
             
-            for word in self.graph:
+            words = list(self.graph.keys())
+            
+            try:
+                word_iterator = tqdm(words, desc="Exporting scores", unit="words")
+            except NameError:
+                word_iterator = words
+                print(f"Exporting scores for {len(words)} words...")
+            
+            for word in word_iterator:
                 one_step = self.one_step_rst_probability(word)
                 hardness = self.escape_hardness(word)
                 pagerank = pagerank_scores.get(word, 0.0)
@@ -429,6 +590,10 @@ class WordAssociationGraph:
                     word, f'{composite:.6f}', f'{one_step:.6f}',
                     f'{hardness:.6f}', f'{pagerank:.6f}', neighbor_count
                 ])
+                
+            # Close progress bar if it exists
+            if hasattr(word_iterator, 'close'):
+                word_iterator.close()
     
     def print_summary(self) -> None:
         """Print a summary of the graph statistics."""

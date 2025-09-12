@@ -1,28 +1,23 @@
 {
   "source": "conceptnet",
+  "name": "ConceptNet 5.7",
+  "url": "https://github.com/commonsense/conceptnet5/wiki/Downloads",
+  "processed_at": "2025-09-12 06:56:52",
   "stats": {
-    "raw_records": 15,
-    "processed_edges": 15,
-    "filtered_edges": 15,
-    "unique_src": 15,
-    "unique_dst": 15,
-    "total_weight": 25.439999999999998,
-    "avg_weight": 1.696
+    "raw_records": 19351295,
+    "processed_edges": 500000,
+    "skipped": 18851295
   },
-  "config": {
-    "name": "conceptnet",
-    "url": "https://s3.amazonaws.com/conceptnet/downloads/2019/edges/conceptnet-assertions-5.7.0.csv.gz",
-    "local_path": null,
-    "weight_multiplier": 0.6,
-    "min_weight": 0.1,
-    "max_edges_per_src": 30,
-    "preprocessing": {
-      "remove_special_chars": true,
-      "alphabetic_only": true,
-      "min_word_length": 2,
-      "max_word_length": 30,
-      "stopwords": "set()",
-      "filter_relations": "{'CapableOf', 'UsedFor', 'AtLocation', 'HasProperty', 'IsA', 'SimilarTo', 'Synonym', 'Causes', 'RelatedTo', 'PartOf'}"
-    }
-  }
+  "relations_included": [
+    "Synonym",
+    "HasProperty",
+    "CapableOf",
+    "UsedFor",
+    "RelatedTo",
+    "IsA",
+    "SimilarTo",
+    "Antonym",
+    "AtLocation"
+  ],
+  "output_file": "data\\processed\\edges_conceptnet.csv"
 }

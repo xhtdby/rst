@@ -9,10 +9,19 @@ A focused toolkit for analyzing word association graphs to identify "trap words"
 pip install -e .
 ```
 
+### Setup Real Datasets (Optional)
+```bash
+# Download and process word association datasets from research sources
+python setup_data.py
+```
+
 ### Usage
 ```bash
 # Find top trap words
 rst-find analyze data/edges.sample.csv --top 10
+
+# Use real datasets (after setup)
+rst-find analyze data/merged/merged_association_graph.csv --top 10
 
 # Get strategic recommendations
 rst-find recommend "start" data/edges.sample.csv
@@ -41,6 +50,22 @@ This tool analyzes word association graphs to find words that are strategically 
 - **Rank words** by trap effectiveness
 - **Get recommendations** for strategic word choices
 - **Export results** to CSV
+
+## Data Sources
+
+### Sample Data
+The toolkit includes sample data in `data/edges.sample.csv` for immediate testing.
+
+### Real Research Datasets
+For production use, you can download and process real word association datasets:
+
+- **Small World of Words (SWOW-EN)**: English word association norms
+- **USF Free Association Norms**: University of South Florida database  
+- **ConceptNet 5.7**: Large-scale semantic knowledge graph
+- **Edinburgh Associative Thesaurus (EAT)**: Word association corpus
+
+Run `python setup_data.py` to automatically download and process these datasets.
+See `DATA_PIPELINE_README.md` for detailed information.
 
 ## Data Format
 
