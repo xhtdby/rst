@@ -1,0 +1,13 @@
+[project]
+name = "rst_trap_finder"
+version = "0.1.0"
+description = "Analyze word graph to find RST trap words"
+authors = [{name="AutoGen"}]
+requires-python = ">=3.11"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+rst_trap_finder = "rst_trap_finder.cli:main"
