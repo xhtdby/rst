@@ -53,6 +53,7 @@ class WordAssociationGraph:
         self.graph: Graph = graph or {}
         self.trap_letters = trap_letters or TRAP_LETTERS
         self._out_sums: Optional[Dict[str, float]] = None
+        self._pagerank_cache: Optional[Dict[str, float]] = None
     
     @classmethod
     def from_csv(cls, path: Union[str, Path], trap_letters: Optional[FrozenSet[str]] = None) -> 'WordAssociationGraph':
@@ -75,13 +76,12 @@ class WordAssociationGraph:
         path = Path(path)
         
         with path.open('r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            
             # Get total number of lines for progress bar
-            f.seek(0)
             total_lines = sum(1 for _ in f) - 1  # Subtract header
-            f.seek(0)
-            next(reader)  # Skip header
+            
+        # Reopen file for actual reading
+        with path.open('r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
             
             try:
                 pbar = tqdm(reader, total=total_lines, desc=f"Loading {path.name}", unit="edges")
@@ -118,7 +118,10 @@ class WordAssociationGraph:
             if hasattr(pbar, 'close'):
                 pbar.close()
         
-        return cls(graph, trap_letters)
+        instance = cls(graph, trap_letters)
+        # Invalidate cache on new instance
+        instance._pagerank_cache = None
+        return instance
     
     @property
     def out_sums(self) -> Dict[str, float]:
@@ -218,6 +221,11 @@ class WordAssociationGraph:
         Returns:
             Dictionary mapping words to PageRank scores
         """
+        # Check cache first (with parameter signature as key)
+        cache_key = f"pagerank_{trap_bias}_{damping}_{max_iterations}_{tolerance}"
+        if self._pagerank_cache is not None and hasattr(self, '_pagerank_cache_key') and self._pagerank_cache_key == cache_key:
+            return self._pagerank_cache
+        
         all_words = list(self.get_all_words())
         n_words = len(all_words)
         
@@ -286,11 +294,41 @@ class WordAssociationGraph:
         if total > 0:
             pagerank = {word: score / total for word, score in pagerank.items()}
         
+        # Cache the result
+        self._pagerank_cache = pagerank
+        self._pagerank_cache_key = cache_key
+        
         return pagerank
     
     def k_step_rst_probability(self, word: str, k: int = 2) -> float:
         """
         Calculate probability of reaching a trap word within k steps.
+        
+        ENHANCED: Now uses optimized multi-step analysis when available.
+        
+        Args:
+            word: Starting word
+            k: Number of steps to look ahead
+            
+        Returns:
+            Probability of reaching trap within k steps
+        """
+        # For simple cases, use the fast method
+        if k <= 3:
+            return self._k_step_rst_probability_simple(word, k)
+        
+        # For complex cases, use the advanced multi-step analyzer
+        try:
+            from .multistep import MultiStepAnalyzer
+            analyzer = MultiStepAnalyzer(self)
+            return analyzer.k_step_probability_cumulative(word, k)
+        except ImportError:
+            # Fallback to simple method
+            return self._k_step_rst_probability_simple(word, k)
+    
+    def _k_step_rst_probability_simple(self, word: str, k: int) -> float:
+        """
+        Simple implementation of k-step RST probability (original method).
         
         Args:
             word: Starting word
@@ -315,7 +353,7 @@ class WordAssociationGraph:
         
         for neighbor, weight in neighbors.items():
             transition_prob = weight / total_weight
-            future_prob = self.k_step_rst_probability(neighbor, k - 1)
+            future_prob = self._k_step_rst_probability_simple(neighbor, k - 1)
             probability += transition_prob * future_prob
             
         return probability
@@ -488,6 +526,16 @@ class WordAssociationGraph:
             rst_analysis[letter] = rst_analysis[letter][:top_k]
         
         return rst_analysis
+    
+    def get_multi_step_analyzer(self):
+        """
+        Get a multi-step analyzer instance for advanced analysis.
+        
+        Returns:
+            MultiStepAnalyzer instance for information theory and path optimization
+        """
+        from .multistep import MultiStepAnalyzer
+        return MultiStepAnalyzer(self)
     
     def get_word_analysis(self, word: str) -> Dict[str, Union[str, float, List[Tuple[str, float]]]]:
         """

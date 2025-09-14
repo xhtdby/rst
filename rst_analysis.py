@@ -283,7 +283,175 @@ class RSTAnalyzer:
         self.results["pathways"] = pathway_results
         return pathway_results
     
-    def simulate_rst_game(self, starting_word: str = "word", max_turns: int = 10):
+    def simulate_rst_game(self, starting_word: str = "word", max_turns: int = 10, 
+                         use_multistep: bool = True, lookahead_depth: int = 3):
+        """Simulate an RST game with strategic recommendations."""
+        print(f"\n🎮 RST Game Simulation")
+        if use_multistep:
+            print("   🧠 Using Multi-Step Strategic Analysis")
+        print("=" * 30)
+        
+        # Use the most complete dataset
+        primary_dataset = None
+        if "complete" in self.graphs:
+            primary_dataset = "complete"
+        elif self.graphs:
+            primary_dataset = list(self.graphs.keys())[0]
+        
+        if not primary_dataset:
+            print("❌ No datasets loaded for simulation")
+            return
+        
+        graph = self.graphs[primary_dataset]
+        print(f"📊 Using dataset: {primary_dataset}")
+        print(f"🎯 Starting word: {starting_word}")
+        print(f"🎮 Max turns: {max_turns}")
+        if use_multistep:
+            print(f"🔍 Lookahead depth: {lookahead_depth}")
+        
+        # Initialize multi-step analyzer if requested
+        if use_multistep:
+            from rst_trap_finder.multistep import MultiStepAnalyzer
+            multistep_analyzer = MultiStepAnalyzer(graph)
+        
+        current_word = starting_word
+        turn = 0
+        game_log = []
+        
+        while turn < max_turns:
+            turn += 1
+            
+            if not graph.has_word(current_word):
+                print(f"\n❌ Turn {turn}: Word '{current_word}' not in dataset")
+                break
+            
+            # Get recommendations with multi-step analysis
+            if use_multistep:
+                recommendations = self._get_multistep_recommendations(
+                    graph, multistep_analyzer, current_word, lookahead_depth
+                )
+            else:
+                recommendations = graph.recommend_next_word(current_word, top_k=5)
+            
+            if not recommendations:
+                print(f"\n❌ Turn {turn}: No recommendations for '{current_word}'")
+                break
+            
+            # Show current situation
+            rst_prob = graph.one_step_rst_probability(current_word)
+            print(f"\n🎯 Turn {turn}: '{current_word}' (RST prob: {rst_prob:.3f})")
+            
+            # Show top recommendations with strategic analysis
+            print("   💡 Recommendations:")
+            for i, rec in enumerate(recommendations[:3]):
+                if use_multistep and isinstance(rec, dict) and 'multistep_score' in rec:
+                    word = rec['word']
+                    score = rec['multistep_score']
+                    k_step_prob = rec.get('k_step_probability', 0)
+                    strategic_score = rec.get('strategic_score', 0)
+                    print(f"      {i+1}. {word:12s}: MS:{score:.4f} K-step:{k_step_prob:.3f} Strategic:{strategic_score:.3f}")
+                else:
+                    word = rec['word'] if isinstance(rec, dict) else rec
+                    if isinstance(rec, dict):
+                        score = rec.get('score', 0)
+                        rst_p = graph.one_step_rst_probability(word)
+                        print(f"      {i+1}. {word:12s}: {score:.4f} (RST: {rst_p:.3f})")
+                    else:
+                        print(f"      {i+1}. {word}")
+            
+            # Simulate opponent choosing highest-scoring recommendation
+            if isinstance(recommendations[0], dict):
+                next_word = recommendations[0]['word']
+            else:
+                next_word = recommendations[0]
+                
+            game_log.append({
+                "turn": turn,
+                "current_word": current_word,
+                "rst_probability": rst_prob,
+                "chosen_word": next_word,
+                "recommendations": recommendations[:3],
+                "multistep_analysis": use_multistep
+            })
+            
+            # Check if we hit an RST word
+            if next_word[0].lower() in {'r', 's', 't'}:
+                print(f"\n🎊 SUCCESS! Turn {turn}: Opponent chose '{next_word}' (RST word)")
+                print(f"🏆 Game won in {turn} turns!")
+                break
+            
+            current_word = next_word
+        
+        else:
+            print(f"\n⏰ Game ended after {max_turns} turns without hitting RST")
+        
+        # Game analysis with multi-step insights
+        print(f"\n📊 Game Analysis:")
+        avg_rst_prob = sum(log['rst_probability'] for log in game_log) / len(game_log) if game_log else 0
+        print(f"   📈 Average RST probability: {avg_rst_prob:.3f}")
+        print(f"   🔄 Total turns played: {len(game_log)}")
+        
+        if use_multistep and game_log:
+            print(f"   🧠 Multi-step strategy employed")
+            print(f"   🔍 Lookahead depth: {lookahead_depth}")
+        
+        success = len(game_log) > 0 and game_log[-1]["chosen_word"][0].lower() in {'r', 's', 't'}
+        self.results["simulation"] = {
+            "starting_word": starting_word,
+            "game_log": game_log,
+            "success": success,
+            "turns": len(game_log),
+            "multistep_analysis": use_multistep,
+            "lookahead_depth": lookahead_depth if use_multistep else None
+        }
+        
+        return game_log
+    
+    def _get_multistep_recommendations(self, graph, multistep_analyzer, current_word, 
+                                     lookahead_depth):
+        """Get recommendations enhanced with multi-step strategic analysis."""
+        # Get basic recommendations
+        basic_recs = graph.recommend_next_word(current_word, top_k=10)
+        
+        if not basic_recs:
+            return []
+        
+        enhanced_recs = []
+        
+        for rec in basic_recs:
+            word = rec['word']
+            
+            # Calculate multi-step metrics
+            k_step_prob = multistep_analyzer.k_step_probability_cumulative(word, lookahead_depth)
+            multistep_result = multistep_analyzer.analyze_multi_step(word, max_k=lookahead_depth)
+            
+            # Enhanced scoring combining original and multi-step analysis
+            original_score = rec['score']
+            strategic_score = multistep_result.strategic_score
+            
+            # Weighted combination favoring multi-step insights
+            multistep_score = (
+                0.4 * original_score +
+                0.4 * strategic_score +
+                0.2 * k_step_prob
+            )
+            
+            enhanced_rec = {
+                'word': word,
+                'score': original_score,
+                'multistep_score': multistep_score,
+                'k_step_probability': k_step_prob,
+                'strategic_score': strategic_score,
+                'path_count': multistep_result.path_count,
+                'information_gain': multistep_result.max_information_gain
+            }
+            
+            enhanced_recs.append(enhanced_rec)
+        
+        # Sort by multi-step score
+        enhanced_recs.sort(key=lambda x: x['multistep_score'], reverse=True)
+        
+        return enhanced_recs
         """Simulate an RST game with strategic recommendations."""
         print(f"\n🎮 RST Game Simulation")
         print("=" * 30)
@@ -454,8 +622,8 @@ def main():
         "good", "work", "time", "love", "life"
     ])
     
-    # 4. Game simulation
-    analyzer.simulate_rst_game("word", max_turns=8)
+    # 4. Game simulation with multi-step analysis
+    analyzer.simulate_rst_game("word", max_turns=8, use_multistep=True, lookahead_depth=3)
     
     # 5. Performance comparison
     analyzer.performance_comparison()
