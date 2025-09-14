@@ -27,13 +27,14 @@ from pathlib import Path
 
 # Add src directory to path
 sys.path.append(str(Path(__file__).parent.parent / "src"))
+sys.path.append(str(Path(__file__).parent))  # Add examples directory
 
 def simple_text_game():
     """Play simple text-based game without complex imports"""
-    print("🎮 RST WORD ASSOCIATION - SIMPLE MODE")
+    print("RST WORD ASSOCIATION - SIMPLE MODE")
     print("=" * 50)
-    print("🎯 Goal: Avoid words starting with R, S, or T")
-    print("💡 Choose words that associate with the current word")
+    print("Goal: Avoid words starting with R, S, or T")
+    print("Choose words that associate with the current word")
     print()
     
     trap_letters = {'r', 's', 't'}
@@ -41,9 +42,9 @@ def simple_text_game():
     turn = 1
     max_turns = 20
     
-    print(f"🎲 Starting word: '{current_word}'")
-    print("🎮 Enter associated words, or 'quit' to exit")
-    print("⚠️  Avoid words starting with R, S, or T!")
+    print(f"Starting word: '{current_word}'")
+    print("Enter associated words, or 'quit' to exit")
+    print("WARNING: Avoid words starting with R, S, or T!")
     print("-" * 50)
     
     while turn <= max_turns:
@@ -52,24 +53,24 @@ def simple_text_game():
             next_word = input("Your word: ").strip().lower()
             
             if next_word in ['quit', 'exit', 'q']:
-                print("👋 Thanks for playing!")
+                print("Thanks for playing!")
                 break
                 
             if not next_word or not next_word.replace('-', '').replace("'", "").isalpha():
-                print("❌ Please enter a valid word!")
+                print("ERROR: Please enter a valid word!")
                 continue
                 
             if next_word[0] in trap_letters:
-                print(f"💥 Oh no! '{next_word}' starts with {next_word[0].upper()}!")
-                print("🎯 You hit a trap letter! Game over!")
-                print(f"🏁 You survived {turn} turns. Good game!")
+                print(f"Oh no! '{next_word}' starts with {next_word[0].upper()}!")
+                print("You hit a trap letter! Game over!")
+                print(f"You survived {turn} turns. Good game!")
                 break
                 
             if len(next_word) < 2:
-                print("❌ Word too short! Please enter a longer word.")
+                print("ERROR: Word too short! Please enter a longer word.")
                 continue
                 
-            print(f"✅ Good choice! '{next_word}' is safe.")
+            print(f"Good choice! '{next_word}' is safe.")
             current_word = next_word
             turn += 1
             
@@ -80,18 +81,18 @@ def simple_text_game():
                 if safe_words:
                     import random
                     computer_choice = random.choice(safe_words)
-                    print(f"🤖 Computer plays: '{computer_choice}'")
+                    print(f"Computer plays: '{computer_choice}'")
                     current_word = computer_choice
                     turn += 1
                 
         except (EOFError, KeyboardInterrupt):
-            print("\n👋 Thanks for playing!")
+            print("\nThanks for playing!")
             break
     
     if turn > max_turns:
-        print(f"\n🎉 Congratulations! You survived all {max_turns} turns!")
+        print(f"\nCongratulations! You survived all {max_turns} turns!")
     
-    print(f"\n📊 Final stats: {turn-1} turns completed")
+    print(f"\nFinal stats: {turn-1} turns completed")
 
 def launch_full_game(mode=None, **kwargs):
     """Launch the full interactive game"""

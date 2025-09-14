@@ -274,7 +274,7 @@ def create_test_suite():
 
 def run_tests():
     """Run all tests with detailed output"""
-    print("🧪 RUNNING MULTI-STEP UNIT TESTS ON TINY GRAPHS")
+    print("RUNNING MULTI-STEP UNIT TESTS ON TINY GRAPHS")
     print("=" * 60)
     
     # Create and run test suite
@@ -283,19 +283,19 @@ def run_tests():
     result = runner.run(suite)
     
     # Print summary
-    print(f"\n📊 TEST SUMMARY:")
+    print(f"\nTEST SUMMARY:")
     print(f"   Tests run: {result.testsRun}")
     print(f"   Failures: {len(result.failures)}")
     print(f"   Errors: {len(result.errors)}")
     print(f"   Success rate: {((result.testsRun - len(result.failures) - len(result.errors)) / result.testsRun * 100):.1f}%")
     
     if result.failures:
-        print(f"\n❌ FAILURES:")
+        print(f"\nFAILURES:")
         for test, traceback in result.failures:
             print(f"   - {test}: {traceback.split('AssertionError:')[-1].strip()}")
     
     if result.errors:
-        print(f"\n💥 ERRORS:")
+        print(f"\nERRORS:")
         for test, traceback in result.errors:
             print(f"   - {test}: {traceback.split('Exception')[-1].strip()}")
     

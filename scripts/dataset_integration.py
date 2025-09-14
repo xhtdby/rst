@@ -422,9 +422,20 @@ def main():
     if merged_path and merged_path.exists():
         print(f"\n🧪 Testing merged dataset with our framework...")
         
-        # Import and test
-        sys.path.append('.')
-        from test_framework import TestDataManager, TestRunner
+        # Try to import test framework from examples directory
+        import sys
+        from pathlib import Path
+        examples_path = Path(__file__).parent.parent / "examples"
+        sys.path.insert(0, str(examples_path))
+        
+        try:
+            import test_framework  # type: ignore
+            TestDataManager = test_framework.TestDataManager
+            TestRunner = test_framework.TestRunner
+        except (ImportError, AttributeError) as e:
+            print(f"   ⚠️  Test framework not available ({e}), skipping validation tests")
+            print(f"   📁 Dataset saved to: {merged_path}")
+            return merged_path
         
         # Add merged dataset to test
         data_manager = TestDataManager()
