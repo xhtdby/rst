@@ -24,7 +24,6 @@ classifiers = [
 
 dependencies = [
     "numpy>=1.20.0",
-    "scipy>=1.7.0",
 ]
 
 [project.optional-dependencies]
@@ -66,6 +65,8 @@ include = [
     "/tests", 
     "/data",
     "/examples",
+    "/scripts",
+    "/docs",
     "/README.md",
     "/LICENSE",
     "/pyproject.toml"

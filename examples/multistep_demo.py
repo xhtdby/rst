@@ -2,6 +2,8 @@
 """
 Multi-Step Analysis Demo - Advanced RST Framework
 
+Note: Example/demo script. Not part of the core package API.
+
 This script demonstrates the new multi-step analysis capabilities including:
 - k-step probability analysis with optimization
 - Information flow algorithms with entropy measures

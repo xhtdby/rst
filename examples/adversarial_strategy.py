@@ -5,6 +5,7 @@ Enhanced Adversarial RST Avoidance Strategy
 This module implements sophisticated adversarial strategies for avoiding RST traps
 while simultaneously trying to lead opponents into them. Uses minimax-style 
 evaluation and multi-step lookahead for competitive gameplay.
+Note: Experimental example. Not part of the core package API.
 """
 
 import sys

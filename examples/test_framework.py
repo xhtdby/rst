@@ -2,6 +2,8 @@
 """
 RST Trap Finder - Comprehensive Test Framework
 
+Note: Example/demo harness for manual validation; not part of the installed package API.
+
 This module provides an intuitive test system that can work with both sample
 and full datasets, enabling rapid development and validation.
 

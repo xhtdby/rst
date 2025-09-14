@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
 Verbose RST Trap Simulation - Shows trap words and strategic intent
+
+Note: Example/demo script. Not part of the core package API.
 """
 
 import sys

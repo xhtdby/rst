@@ -9,6 +9,8 @@ This module downloads and integrates multiple word association datasets:
 - USF (University of South Florida - already have)
 
 Creates a unified, context-free word association database.
+
+Note: Legacy script. Prefer `enhanced_dataset_integration.py` for the up-to-date pipeline.
 """
 
 import requests

@@ -2,6 +2,8 @@
 """
 Interactive RST Word Association Game CLI
 
+Note: Example/demo CLI. Not part of the core package API.
+
 Supports:
 - Player vs Computer
 - Player vs Player  

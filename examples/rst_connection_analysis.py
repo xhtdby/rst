@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
 RST Connection Analysis - Find words with most RST connections (original goal)
+
+Note: Example/demo script. Not part of the core package API.
 """
 
 import sys

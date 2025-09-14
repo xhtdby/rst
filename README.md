@@ -11,8 +11,11 @@ pip install -e .
 
 ### Setup Real Datasets (Optional)
 ```bash
-# Download and process word association datasets from research sources
-python setup_data.py
+# Download and process research datasets (ConceptNet/SWOW/EAT)
+python scripts/enhanced_dataset_integration.py
+
+# Optionally create reduced-size datasets for faster iteration
+python scripts/intelligent_dataset_reduction.py
 ```
 
 ### Usage
@@ -64,8 +67,8 @@ For production use, you can download and process real word association datasets:
 - **ConceptNet 5.7**: Large-scale semantic knowledge graph
 - **Edinburgh Associative Thesaurus (EAT)**: Word association corpus
 
-Run `python setup_data.py` to automatically download and process these datasets.
-See `DATA_PIPELINE_README.md` for detailed information.
+Run `python scripts/enhanced_dataset_integration.py` to download/process these datasets.
+See `docs/ASSUMPTIONS_AND_LIMITATIONS.md` for modeling notes.
 
 ## Data Format
 
@@ -84,6 +87,62 @@ color,blue,1.0
 - `rst-find recommend <word> <csv>` - Get recommendations
 - `rst-find export <csv> <output>` - Export scores
 
+## Repository Structure
+
+```
+rst-trap-finder/
+├── src/rst_trap_finder/     # Core library package
+│   ├── core.py              # Graph loading, scoring, ranking
+│   ├── multistep.py         # Multi-step analysis algorithms
+│   └── cli.py               # Command-line interface
+├── data/                    # Word association datasets
+│   ├── edges.sample.csv     # Quick test data
+│   ├── processed/           # Cleaned datasets
+│   ├── merged/              # Combined datasets
+│   └── reduced/             # Optimized datasets
+├── examples/                # Interactive examples & demos
+│   ├── game_launcher.py     # Consolidated game interface (recommended)
+│   ├── game_cli.py          # Full-featured game with AI
+│   ├── rst_analysis_clean.py # Comprehensive analysis framework
+│   ├── multistep_demo.py    # Multi-step algorithm showcase
+│   ├── adversarial_strategy.py # Advanced AI strategies
+│   └── ...                  # More examples and analysis tools
+├── scripts/                 # Data processing pipelines
+│   ├── enhanced_dataset_integration.py # Download & process datasets
+│   ├── intelligent_dataset_reduction.py # Create optimized datasets
+│   └── ...                  # More processing utilities
+├── tests/                   # Unit and integration tests
+├── docs/                    # Comprehensive documentation
+│   ├── ASSUMPTIONS_AND_LIMITATIONS.md # Technical details
+│   ├── HOW_TO_PLAY.md       # Game instructions
+│   └── ...                  # More documentation
+└── README.md               # This file
+```
+
+## Quick Start Paths
+
+### 🎮 **Play the Game**
+```bash
+python examples/game_launcher.py
+```
+
+### 📊 **Analyze Words**
+```bash
+rst-find analyze data/edges.sample.csv --top 10
+```
+
+### 🔬 **Set Up Research Data**
+```bash
+python scripts/enhanced_dataset_integration.py
+python scripts/intelligent_dataset_reduction.py
+```
+
+### 🧪 **Explore Examples**
+```bash
+python examples/multistep_demo.py
+python examples/rst_analysis_clean.py
+```
+
 ## Example Output
 
 ```
@@ -98,9 +157,8 @@ Best recommendation from 'start': color (score: 0.5770)
 ## Dependencies
 
 - Python 3.9+
-- NumPy, SciPy
 
-For detailed technical information, see `TECHNICAL_GUIDE.md`.
+See `docs/ASSUMPTIONS_AND_LIMITATIONS.md` and `docs/HOW_TO_PLAY.md` for details.
 
 ## License
 

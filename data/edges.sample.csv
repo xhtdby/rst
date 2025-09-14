@@ -1,10 +1,6 @@
 src,dst,weight
-a,b,1.0
-a,c,0.5
-b,d,1.0
-c,red,0.8
-c,green,0.2
-d,end,1.0
 start,color,1.0
-color,red,0.6
-color,blue,0.4
+color,red,2.0
+color,blue,1.0
+red,stop,1.0
+blue,go,1.0

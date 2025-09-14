@@ -34,8 +34,8 @@ The RST Trap Finder is a strategic analysis tool for word association games, spe
 
 #### Trap Effectiveness
 - **One-Step Probability**: Direct probability of reaching trap letters in one move
-- **Weighted Combination**: Final score combines PageRank centrality with trap probability
-- **Default Weights**: 70% PageRank + 30% trap probability (configurable)
+- **Composite Scoring (Implemented)**: Current implementation combines four components: one-step probability, neighborhood richness, escape hardness, and trap-biased PageRank. Default weights are `(0.4, 0.2, 0.2, 0.2)`.
+- **Note**: Weights are configurable at call sites and may be tuned per dataset.
 
 ### 5. Multi-Step Analysis
 - **Dynamic Programming**: k-step probabilities calculated using memoized recursion
